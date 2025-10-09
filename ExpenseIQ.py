@@ -48,18 +48,27 @@ def preprocess_df(df: pd.DataFrame) -> pd.DataFrame:
 def plot_expense_distribution(df):
     expense_distribution = df.groupby('Category')['Amount'].sum().sort_values(ascending=False)
     fig, ax = plt.subplots(figsize=(6, 6), facecolor="#fafafa")
-    colors = sns.color_palette("pastel", len(expense_distribution))
+    
+    # Darker and contrasting colors
+    colors = sns.color_palette("deep", len(expense_distribution))
+    
     wedges, texts, autotexts = ax.pie(
         expense_distribution,
         autopct='%1.1f%%',
         startangle=120,
         colors=colors,
-        textprops={'fontsize': 10, 'color': 'black'}
+        textprops={'fontsize':6.5, 'weight': 'bold', 'color': 'black'},
+        pctdistance=0.75, 
+        wedgeprops={'edgecolor': 'white', 'linewidth': 2, 'alpha': 0.9} 
     )
-    plt.setp(autotexts, size=10, weight="bold")
-    ax.set_title('Expense Distribution by Category', fontsize=14, weight='bold', pad=20)
-    ax.legend(expense_distribution.index, loc="center left", bbox_to_anchor=(1, 0.5))
+    centre_circle = plt.Circle((0, 0), 0.50, fc='white')
+    fig.gca().add_artist(centre_circle)
+    ax.set_title('Expense Distribution by Category', fontsize=15, weight='bold', pad=20)
+    ax.legend(expense_distribution.index, loc="center left", bbox_to_anchor=(1, 0.5), fontsize=11, frameon=False)
     st.pyplot(fig)
+
+
+
 
 def plot_time_series(df):
     ts = df.groupby('Date')['Amount'].sum().reset_index()
@@ -96,6 +105,25 @@ def plot_boxplot(df):
     ax.set_xlabel('Category', fontsize=11)
     ax.set_ylabel('Amount (Rs)', fontsize=11)
     plt.xticks(rotation=30, ha='right')
+    st.pyplot(fig)
+
+def plot_monthly_heatmap(df):
+    df['Month_Year'] = df['Date'].dt.to_period('M').astype(str)
+    heatmap_data = df.groupby(['Month_Year', 'Category'])['Amount'].sum().unstack().fillna(0)
+    fig, ax = plt.subplots(figsize=(10, 5), facecolor="#f9f9f9")
+    sns.heatmap(
+        heatmap_data.T,
+        cmap='YlGnBu',
+        linewidths=0.3,
+        annot=True,
+        fmt=".0f",
+        cbar_kws={'label': 'Total Amount (Rs)'},
+        ax=ax
+    )
+    ax.set_title("Monthly Spending Heatmap", fontsize=15, weight='bold', pad=15)
+    ax.set_xlabel("Month-Year", fontsize=12)
+    ax.set_ylabel("Category", fontsize=12)
+    plt.xticks(rotation=45, ha='right')
     st.pyplot(fig)
 
 #--------------------------------Model Functions--------------------------------
@@ -192,8 +220,11 @@ if df['Category'].notna().any():
     plot_boxplot(df)
 else:
     st.info("Boxplot requires labeled categories.")
-
 st.markdown("---")
+st.markdown("Monthly Heatmap")
+plot_monthly_heatmap(df)
+st.markdown("---")
+
 
 #--------------------------------Model Training & Prediction---------------------------------
 
@@ -261,4 +292,3 @@ with st.form("predict_form"):
                 {v: k for k, v in model_label_map.items()} if model_label_map else {}
             )
             st.success(f"Predicted Category: **{pred}**")
-
